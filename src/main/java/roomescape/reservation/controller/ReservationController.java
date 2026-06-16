@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import roomescape.common.exception.BusinessException;
-import roomescape.common.exception.ErrorCode;
 import roomescape.member.domain.Member;
 import roomescape.reservation.dto.ReservationIdResponse;
 import roomescape.reservation.dto.ReservationRequest;
@@ -39,9 +37,6 @@ public class ReservationController {
     @GetMapping
     public ResponseEntity<List<ReservationResponse>> getReservations(HttpServletRequest request) {
         Member member = (Member) request.getSession().getAttribute("member");
-        if (member == null) {
-            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
-        }
         return ResponseEntity.ok(reservationService.getReservations(member));
     }
 
@@ -56,9 +51,6 @@ public class ReservationController {
     public ResponseEntity<ReservationResponse> createReservation(@Valid @RequestBody ReservationRequest request,
                                                                  HttpServletRequest httpRequest) {
         Member member = (Member) httpRequest.getSession().getAttribute("member");
-        if (member == null) {
-            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
-        }
         ReservationResponse response = reservationService.createReservation(request, member);
         return ResponseEntity.created(URI.create("/reservations/" + response.id())).body(response);
     }
@@ -70,18 +62,12 @@ public class ReservationController {
             HttpServletRequest httpRequest
     ) {
         Member member = (Member) httpRequest.getSession().getAttribute("member");
-        if (member == null) {
-            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
-        }
         return ResponseEntity.ok(reservationService.updateReservation(id, request, member));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteReservation(@PathVariable Long id, HttpServletRequest httpRequest) {
         Member member = (Member) httpRequest.getSession().getAttribute("member");
-        if (member == null) {
-            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
-        }
         reservationService.deleteReservation(id, member);
         return ResponseEntity.noContent().build();
     }

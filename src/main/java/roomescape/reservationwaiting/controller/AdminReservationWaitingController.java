@@ -26,9 +26,6 @@ public class AdminReservationWaitingController {
     @PostMapping("/approve/{id}")
     public ResponseEntity<ReservationResponse> approveWaiting(@PathVariable Long id, HttpServletRequest httpRequest) {
         Member member = (Member) httpRequest.getSession().getAttribute("member");
-        if (member == null) {
-            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
-        }
         if (member.getRole() != Role.ADMIN) {
             throw new BusinessException(ErrorCode.ADMIN_ACCESS_REQUIRED);
         }
