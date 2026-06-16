@@ -26,6 +26,8 @@ class AdminThemeControllerTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private Map<String, String> adminCookies;
+
     @BeforeEach
     void setUp() {
         RestAssured.port = port;
@@ -33,6 +35,18 @@ class AdminThemeControllerTest {
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마B', '설명B', 'https://b.com')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마C', '설명C', 'https://c.com')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마D', '설명D', 'https://d.com')");
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('admin', '관리자', 'password', 'ADMIN')");
+        adminCookies = login("admin", "password");
+    }
+
+    private Map<String, String> login(String loginId, String password) {
+        String sessionId = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("loginId", loginId, "password", password))
+                .when().post("/login")
+                .then().extract().cookie("JSESSIONID");
+        return Map.of("JSESSIONID", sessionId);
     }
 
     private Map<String, String> themeBody() {
@@ -43,6 +57,7 @@ class AdminThemeControllerTest {
     @DisplayName("테마 생성 성공")
     void 테마_생성_성공() {
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .contentType(ContentType.JSON)
                 .body(themeBody())
                 .when().post("/admin/themes")
@@ -55,6 +70,7 @@ class AdminThemeControllerTest {
     @DisplayName("테마 전체 조회 성공")
     void 테마_전체_조회_성공() {
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .when().get("/admin/themes")
                 .then().log().all()
                 .statusCode(200)
@@ -65,12 +81,14 @@ class AdminThemeControllerTest {
     @DisplayName("테마 삭제 성공")
     void 테마_삭제_성공() {
         Integer id = RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .contentType(ContentType.JSON)
                 .body(themeBody())
                 .when().post("/admin/themes")
                 .then().extract().path("id");
 
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .when().delete("/admin/themes/" + id)
                 .then().log().all()
                 .statusCode(204);

@@ -1,5 +1,6 @@
 package roomescape.theme.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import roomescape.common.exception.BusinessException;
+import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
+import roomescape.member.domain.Role;
 import roomescape.theme.dto.AdminThemeRequest;
 import roomescape.theme.dto.AdminThemeResponse;
 import roomescape.theme.service.AdminThemeService;
@@ -28,19 +33,30 @@ public class AdminThemeController {
     }
 
     @PostMapping
-    public ResponseEntity<AdminThemeResponse> createTheme(@Valid @RequestBody AdminThemeRequest request) {
+    public ResponseEntity<AdminThemeResponse> createTheme(@Valid @RequestBody AdminThemeRequest request,
+                                                            HttpServletRequest httpRequest) {
+        requireAdmin(httpRequest);
         AdminThemeResponse response = adminThemeService.createTheme(request);
         return ResponseEntity.created(URI.create("/admin/themes/" + response.id())).body(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<AdminThemeResponse>> getThemes() {
+    public ResponseEntity<List<AdminThemeResponse>> getThemes(HttpServletRequest httpRequest) {
+        requireAdmin(httpRequest);
         return ResponseEntity.ok(adminThemeService.getAllThemes());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTheme(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteTheme(@PathVariable Long id, HttpServletRequest httpRequest) {
+        requireAdmin(httpRequest);
         adminThemeService.deleteTheme(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private void requireAdmin(HttpServletRequest httpRequest) {
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member.getRole() != Role.ADMIN) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCESS_REQUIRED);
+        }
     }
 }

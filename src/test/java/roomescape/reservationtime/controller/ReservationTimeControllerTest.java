@@ -26,6 +26,8 @@ class ReservationTimeControllerTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private Map<String, String> adminCookies;
+
     @BeforeEach
     void setUp() {
         RestAssured.port = port;
@@ -37,12 +39,25 @@ class ReservationTimeControllerTest {
         Long memberId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
         jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)",
                 memberId, LocalDate.now().minusDays(1));
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('admin', '관리자', 'password', 'ADMIN')");
+        adminCookies = login("admin", "password");
+    }
+
+    private Map<String, String> login(String loginId, String password) {
+        String sessionId = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("loginId", loginId, "password", password))
+                .when().post("/login")
+                .then().extract().cookie("JSESSIONID");
+        return Map.of("JSESSIONID", sessionId);
     }
 
     @Test
     @DisplayName("시간 생성 성공")
     void 시간_생성_성공() {
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .contentType(ContentType.JSON)
                 .body(Map.of("startAt", "20:00", "finishAt", "21:00"))
                 .when().post("/times")
@@ -65,12 +80,14 @@ class ReservationTimeControllerTest {
     @DisplayName("시간 삭제 성공")
     void 시간_삭제_성공() {
         Integer id = RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .contentType(ContentType.JSON)
                 .body(Map.of("startAt", "20:00", "finishAt", "21:00"))
                 .when().post("/times")
                 .then().extract().path("id");
 
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .when().delete("/times/" + id)
                 .then().log().all()
                 .statusCode(204);

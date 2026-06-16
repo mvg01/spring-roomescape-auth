@@ -44,11 +44,16 @@ public class MissionStep3Test {
 
     @Test
     void 시간_관리_API() {
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('admin', '관리자', 'password', 'ADMIN')");
+        Map<String, String> adminCookies = login("admin", "password");
+
         Map<String, String> params = new HashMap<>();
         params.put("startAt", "20:00");
         params.put("finishAt", "21:00");
 
         Integer newId = RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .contentType(ContentType.JSON)
                 .body(params)
                 .when().post("/times")
@@ -63,6 +68,7 @@ public class MissionStep3Test {
                 .body("size()", is(4));
 
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .when().delete("/times/" + newId)
                 .then().log().all()
                 .statusCode(204);
