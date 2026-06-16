@@ -27,6 +27,4 @@ public class MemberController {
         MemberResponse response = memberService.createMember(request);
         return ResponseEntity.created(URI.create("/members/" + response.id())).body(response);
     }
-
-    // 로그인은 어떻게? get이맞나?
 }

@@ -12,6 +12,9 @@ public enum ErrorCode {
     PAST_TIME_WAITING(HttpStatus.BAD_REQUEST, "이미 지난 시간에는 대기 신청할 수 없습니다."),
     PAST_WAITING_CANCEL(HttpStatus.BAD_REQUEST, "이미 지난 시간에는 대기를 취소할 수 없습니다."),
 
+    // 401 - UNAUTHORIZED
+    LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
+
     // 404 - NOT_FOUND
     RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 예약입니다."),
     WAITING_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 대기입니다."),
