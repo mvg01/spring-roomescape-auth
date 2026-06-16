@@ -50,8 +50,12 @@ public class ReservationWaitingController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWaiting(@PathVariable Long id) {
-        reservationWaitingService.deleteWaiting(id);
+    public ResponseEntity<Void> deleteWaiting(@PathVariable Long id, HttpServletRequest httpRequest) {
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        reservationWaitingService.deleteWaiting(id, member);
         return ResponseEntity.noContent().build();
     }
 }

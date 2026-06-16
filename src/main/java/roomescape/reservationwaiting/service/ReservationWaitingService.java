@@ -62,8 +62,11 @@ public class ReservationWaitingService {
     }
 
     @Transactional
-    public void deleteWaiting(Long id) {
+    public void deleteWaiting(Long id, Member member) {
         ReservationWaiting waiting = getById(id);
+        if (!waiting.getMember().getId().equals(member.getId())) {
+            throw new BusinessException(ErrorCode.WAITING_ACCESS_DENIED);
+        }
         waiting.validateCancelable(clock, ErrorCode.PAST_WAITING_CANCEL);
         reservationWaitingRepository.deleteById(id);
     }

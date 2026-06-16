@@ -75,8 +75,9 @@ public class ReservationService {
     }
 
     @Transactional
-    public void deleteReservation(Long id) {
+    public void deleteReservation(Long id, Member member) {
         Reservation reservation = getById(id);
+        validateOwner(reservation, member);
         reservation.validateModifiable(clock, ErrorCode.PAST_RESERVATION_CANCEL);
 
         reservationRepository.deleteById(id);
@@ -85,8 +86,9 @@ public class ReservationService {
     }
 
     @Transactional
-    public ReservationResponse updateReservation(Long id, ReservationUpdateRequest request) {
+    public ReservationResponse updateReservation(Long id, ReservationUpdateRequest request, Member member) {
         Reservation reservation = getById(id);
+        validateOwner(reservation, member);
         reservation.validateModifiable(clock, ErrorCode.PAST_RESERVATION_UPDATE);
 
         ReservationSlot slot = reservation.getSlot();
@@ -108,6 +110,12 @@ public class ReservationService {
     private Reservation getById(Long id) {
         return reservationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+
+    private void validateOwner(Reservation reservation, Member member) {
+        if (!reservation.getMember().getId().equals(member.getId())) {
+            throw new BusinessException(ErrorCode.RESERVATION_ACCESS_DENIED);
+        }
     }
 
     public ReservationIdResponse getReservationId(LocalDate date, Long themeId, Long timeId) {

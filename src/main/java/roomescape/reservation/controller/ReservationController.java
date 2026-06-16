@@ -66,14 +66,23 @@ public class ReservationController {
     @PatchMapping("/{id}")
     public ResponseEntity<ReservationResponse> updateReservation(
             @PathVariable Long id,
-            @Valid @RequestBody ReservationUpdateRequest request
+            @Valid @RequestBody ReservationUpdateRequest request,
+            HttpServletRequest httpRequest
     ) {
-        return ResponseEntity.ok(reservationService.updateReservation(id, request));
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        return ResponseEntity.ok(reservationService.updateReservation(id, request, member));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReservation(@PathVariable Long id) {
-        reservationService.deleteReservation(id);
+    public ResponseEntity<Void> deleteReservation(@PathVariable Long id, HttpServletRequest httpRequest) {
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        reservationService.deleteReservation(id, member);
         return ResponseEntity.noContent().build();
     }
 }
