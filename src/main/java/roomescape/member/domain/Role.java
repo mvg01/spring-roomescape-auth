@@ -2,5 +2,9 @@ package roomescape.member.domain;
 
 public enum Role {
     USER,
-    ADMIN
+    ADMIN;
+
+    public static Role of(String role) {
+        return  Role.valueOf(role);
+    }
 }
