@@ -2,6 +2,18 @@ DROP TABLE IF EXISTS reservation_waiting;
 DROP TABLE IF EXISTS reservation;
 DROP TABLE IF EXISTS theme;
 DROP TABLE IF EXISTS reservation_time;
+DROP TABLE IF EXISTS member;
+
+CREATE TABLE member
+(
+    id       BIGINT       NOT NULL AUTO_INCREMENT,
+    login_id VARCHAR(255) NOT NULL,
+    name     VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role     VARCHAR(20)  NOT NULL,
+    UNIQUE(login_id),
+    PRIMARY KEY (id)
+);
 
 CREATE TABLE reservation_time
 (
@@ -37,7 +49,7 @@ CREATE TABLE reservation
 
 CREATE TABLE reservation_waiting
 (
-    id       BIGINT       NOT NULL AUTO_INCREMENT,
+id       BIGINT       NOT NULL AUTO_INCREMENT,
     name     VARCHAR(255) NOT NULL,
     date     DATE         NOT NULL,
     time_id  BIGINT,
