@@ -25,6 +25,8 @@ public class MissionStep1Test {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private Map<String, String> testerCookies;
+
     @BeforeEach
     void setUp() {
         RestAssured.port = port;
@@ -36,18 +38,41 @@ public class MissionStep1Test {
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마C', '설명C', 'https://c.com')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마D', '설명D', 'https://d.com')");
 
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u1', ?, 1, 1)",
-                LocalDate.now().minusDays(1));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u2', ?, 1, 1)",
-                LocalDate.now().minusDays(2));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u3', ?, 1, 1)",
-                LocalDate.now().minusDays(3));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u1', ?, 2, 2)",
-                LocalDate.now().minusDays(1));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u2', ?, 2, 2)",
-                LocalDate.now().minusDays(2));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u1', ?, 3, 3)",
-                LocalDate.now().minusDays(1));
+        Long u1Id = insertMember("u1", "u1");
+        Long u2Id = insertMember("u2", "u2");
+        Long u3Id = insertMember("u3", "u3");
+
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)",
+                u1Id, LocalDate.now().minusDays(1));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)",
+                u2Id, LocalDate.now().minusDays(2));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)",
+                u3Id, LocalDate.now().minusDays(3));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 2, 2)",
+                u1Id, LocalDate.now().minusDays(1));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 2, 2)",
+                u2Id, LocalDate.now().minusDays(2));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 3, 3)",
+                u1Id, LocalDate.now().minusDays(1));
+
+        insertMember("tester", "테스터");
+        testerCookies = login("tester", "password");
+    }
+
+    private Long insertMember(String loginId, String name) {
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES (?, ?, 'password', 'USER')",
+                loginId, name);
+        return jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+    }
+
+    private Map<String, String> login(String loginId, String password) {
+        String sessionId = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("loginId", loginId, "password", password))
+                .when().post("/login")
+                .then().extract().cookie("JSESSIONID");
+        return Map.of("JSESSIONID", sessionId);
     }
 
     @Test
@@ -60,8 +85,9 @@ public class MissionStep1Test {
                 .body("size()", is(3));
 
         RestAssured.given().log().all()
+                .cookies(testerCookies)
                 .contentType(ContentType.JSON)
-                .body(Map.of("name", "테스터", "date", date.toString(), "timeId", 1, "themeId", 1))
+                .body(Map.of("date", date.toString(), "timeId", 1, "themeId", 1))
                 .when().post("/reservations")
                 .then().log().all()
                 .statusCode(201);

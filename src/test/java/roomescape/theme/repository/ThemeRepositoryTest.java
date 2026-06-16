@@ -35,12 +35,19 @@ class ThemeRepositoryTest {
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마C', '설명C', 'https://c.com')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마D', '설명D', 'https://d.com')");
 
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u1', ?, 1, 1)", LocalDate.now().minusDays(1));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u2', ?, 1, 1)", LocalDate.now().minusDays(2));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u3', ?, 1, 1)", LocalDate.now().minusDays(3));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u1', ?, 2, 2)", LocalDate.now().minusDays(1));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u2', ?, 2, 2)", LocalDate.now().minusDays(2));
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('u1', ?, 3, 3)", LocalDate.now().minusDays(1));
+        jdbcTemplate.update("INSERT INTO member (login_id, name, password, role) VALUES ('u1', '사용자1', 'password', 'USER')");
+        Long u1 = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        jdbcTemplate.update("INSERT INTO member (login_id, name, password, role) VALUES ('u2', '사용자2', 'password', 'USER')");
+        Long u2 = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        jdbcTemplate.update("INSERT INTO member (login_id, name, password, role) VALUES ('u3', '사용자3', 'password', 'USER')");
+        Long u3 = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)", u1, LocalDate.now().minusDays(1));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)", u2, LocalDate.now().minusDays(2));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)", u3, LocalDate.now().minusDays(3));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 2, 2)", u1, LocalDate.now().minusDays(1));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 2, 2)", u2, LocalDate.now().minusDays(2));
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 3, 3)", u1, LocalDate.now().minusDays(1));
     }
 
     @Test

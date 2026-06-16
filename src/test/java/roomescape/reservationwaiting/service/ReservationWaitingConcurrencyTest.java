@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
+import roomescape.member.domain.Member;
+import roomescape.member.domain.Role;
 import roomescape.reservationwaiting.dto.ReservationWaitingRequest;
 
 @SpringBootTest
@@ -27,18 +29,32 @@ public class ReservationWaitingConcurrencyTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private Long reservationId;
+    private Member waiter;
+
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('10:00', '11:00')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마A', '설명A', 'https://a.com')");
+
         jdbcTemplate.update(
-                "INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', '2099-12-01', 1, 1)");
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user1', '현미밥', 'password', 'USER')");
+        Long ownerId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 1, 1)",
+                ownerId);
+        reservationId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
+
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user2', '무빙', 'password', 'USER')");
+        Long waiterId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        waiter = Member.restore(waiterId, "user2", "무빙", "password", Role.USER);
     }
 
     @Test
     @DisplayName("동시에 2개의 예약 대기 생성 요청이 들어왔을 때 DB에는 1개만 저장된다")
     void 동시_예약_대기_생성_요청_시_1개만_저장된다() throws InterruptedException {
-        ReservationWaitingRequest request = new ReservationWaitingRequest("user2", 1L);
+        ReservationWaitingRequest request = new ReservationWaitingRequest(reservationId);
         int threadCount = 2;
 
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
@@ -52,7 +68,7 @@ public class ReservationWaitingConcurrencyTest {
             executorService.submit(() -> {
                 try {
                     startLatch.await();
-                    reservationWaitingService.createWaiting(request);
+                    reservationWaitingService.createWaiting(request, waiter);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     caughtExceptions.add(e);

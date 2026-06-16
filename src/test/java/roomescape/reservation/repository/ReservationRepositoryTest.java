@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 import roomescape.common.domain.ReservationSlot;
+import roomescape.member.domain.Member;
+import roomescape.member.domain.Role;
 import roomescape.reservation.domain.Reservation;
 import roomescape.reservation.domain.ReservationFactory;
 import roomescape.reservationtime.repository.JdbcReservationTimeRepository;
@@ -44,14 +46,21 @@ class ReservationRepositoryTest {
     private JdbcTemplate jdbcTemplate;
 
     private Long futureReservationId;
+    private Member member;
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user1', '현미밥', 'password', 'USER')");
+        Long memberId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        member = Member.restore(memberId, "user1", "현미밥", "password", Role.USER);
+
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('10:00', '11:00')");
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('14:00', '15:00')");
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('18:00', '19:00')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마A', '설명A', 'https://a.com')");
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', '2099-12-01', 1, 1)");
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 1, 1)",
+                memberId);
         futureReservationId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
     }
 
@@ -59,7 +68,7 @@ class ReservationRepositoryTest {
     @DisplayName("예약 저장 성공")
     void 예약_저장_성공() {
         Reservation saved = reservationRepository.save(
-                reservationFactory.create("현미밥", new ReservationSlot(
+                reservationFactory.create(member, new ReservationSlot(
                         LocalDate.now().plusDays(1),
                         timeRepository.findById(1L).get(),
                         themeRepository.findById(1L).get())));

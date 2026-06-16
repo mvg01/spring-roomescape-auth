@@ -35,16 +35,34 @@ public class ReservationWaitingE2ETest {
                 "INSERT INTO theme (name, description, image_url) VALUES ('테마A', '설명A', 'https://a.com')");
     }
 
+    private void insertMember(String loginId, String name, String role) {
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES (?, ?, 'password', ?)",
+                loginId, name, role);
+    }
+
+    private Map<String, String> login(String loginId, String password) {
+        String sessionId = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("loginId", loginId, "password", password))
+                .when().post("/login")
+                .then().extract().cookie("JSESSIONID");
+        return Map.of("JSESSIONID", sessionId);
+    }
+
     @Test
     @DisplayName("자신의 예약에는 대기할 수 없다.")
     void 자신의_예약에는_대기할_수_없다() {
+        insertMember("user1", "user1", "USER");
+        Map<String, String> user1Cookies = login("user1", "password");
+
         Map<String, Object> reservation = new HashMap<>();
-        reservation.put("name", "user1");
         reservation.put("date", "2099-12-01");
         reservation.put("timeId", 1);
         reservation.put("themeId", 1);
 
         Integer reservationId = RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
                 .body(reservation)
                 .when().post("/reservations")
@@ -53,10 +71,10 @@ public class ReservationWaitingE2ETest {
                 .extract().path("id");
 
         Map<String, Object> waiting = new HashMap<>();
-        waiting.put("name", "user1");
         waiting.put("reservationId", reservationId);
 
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
                 .body(waiting)
                 .when().post("/waitings")
@@ -68,13 +86,20 @@ public class ReservationWaitingE2ETest {
     @Test
     @DisplayName("관리자가 수동으로 대기를 예약으로 승격할 수 있다.")
     void 관리자_대기_승격() {
+        insertMember("user1", "user1", "USER");
+        insertMember("user2", "user2", "USER");
+        insertMember("admin", "관리자", "ADMIN");
+        Map<String, String> user1Cookies = login("user1", "password");
+        Map<String, String> user2Cookies = login("user2", "password");
+        Map<String, String> adminCookies = login("admin", "password");
+
         Map<String, Object> reservation = new HashMap<>();
-        reservation.put("name", "user1");
         reservation.put("date", "2099-12-01");
         reservation.put("timeId", 1);
         reservation.put("themeId", 1);
 
         Integer reservationId = RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
                 .body(reservation)
                 .when().post("/reservations")
@@ -83,28 +108,30 @@ public class ReservationWaitingE2ETest {
                 .extract().path("id");
 
         Map<String, Object> waiting = new HashMap<>();
-        waiting.put("name", "user2");
         waiting.put("reservationId", reservationId);
 
-        RestAssured.given().log().all()
+        Integer waitingId = RestAssured.given().log().all()
+                .cookies(user2Cookies)
                 .contentType(ContentType.JSON)
                 .body(waiting)
                 .when().post("/waitings")
                 .then().log().all()
-                .statusCode(201);
+                .statusCode(201)
+                .extract().path("id");
 
         jdbcTemplate.update("DELETE FROM reservation WHERE id = ?", reservationId);
 
         RestAssured.given().log().all()
+                .cookies(adminCookies)
                 .contentType(ContentType.JSON)
-                .body(waiting)
-                .when().post("/admin/waitings/approve/" + reservationId)
+                .when().post("/admin/waitings/approve/" + waitingId)
                 .then().log().all()
                 .statusCode(201)
                 .body("name", equalTo("user2"));
 
         RestAssured.given().log().all()
-                .when().get("/waitings?name=user2")
+                .cookies(user2Cookies)
+                .when().get("/waitings")
                 .then().log().all()
                 .statusCode(200)
                 .body("$", hasSize(0));

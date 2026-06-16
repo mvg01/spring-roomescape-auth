@@ -33,6 +33,15 @@ public class MissionStep3Test {
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마A', '설명A', 'https://a.com')");
     }
 
+    private Map<String, String> login(String loginId, String password) {
+        String sessionId = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("loginId", loginId, "password", password))
+                .when().post("/login")
+                .then().extract().cookie("JSESSIONID");
+        return Map.of("JSESSIONID", sessionId);
+    }
+
     @Test
     void 시간_관리_API() {
         Map<String, String> params = new HashMap<>();
@@ -61,13 +70,17 @@ public class MissionStep3Test {
 
     @Test
     void 예약과_시간_연결() {
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('brown', '브라운', 'password', 'USER')");
+        Map<String, String> brownCookies = login("brown", "password");
+
         Map<String, Object> reservation = new HashMap<>();
-        reservation.put("name", "브라운");
         reservation.put("date", "2099-08-05");
         reservation.put("timeId", 1);
         reservation.put("themeId", 1);
 
         RestAssured.given().log().all()
+                .cookies(brownCookies)
                 .contentType(ContentType.JSON)
                 .body(reservation)
                 .when().post("/reservations")

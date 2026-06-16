@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
+import roomescape.member.domain.Member;
+import roomescape.member.domain.Role;
 import roomescape.reservation.dto.ReservationRequest;
 
 @SpringBootTest
@@ -29,16 +31,22 @@ class ReservationConcurrencyTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private Member member;
+
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('10:00', '11:00')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마A', '설명A', 'https://a.com')");
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user1', '현미밥', 'password', 'USER')");
+        Long memberId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        member = Member.restore(memberId, "user1", "현미밥", "password", Role.USER);
     }
 
     @Test
     @DisplayName("동시에 2개의 예약 생성 요청이 들어왔을 때 DB에는 1개만 저장된다")
     void 동시_예약_생성_요청_시_1개만_저장된다() throws InterruptedException {
-        ReservationRequest request = new ReservationRequest("user1", LocalDate.of(2099, 12, 1), 1L, 1L);
+        ReservationRequest request = new ReservationRequest(LocalDate.of(2099, 12, 1), 1L, 1L);
 
         int threadCount = 2;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
@@ -52,7 +60,7 @@ class ReservationConcurrencyTest {
             executorService.submit(() -> {
                 try {
                     startLatch.await();
-                    reservationService.createReservation(request);
+                    reservationService.createReservation(request, member);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     caughtExceptions.add(e);
@@ -81,7 +89,8 @@ class ReservationConcurrencyTest {
     @DisplayName("동시에 2개의 예약 삭제 요청이 들어왔을 때 오류 없이 합 번만 처리된다.")
     void 동시_예약_삭제_요청_시_1개만_삭제된다() throws InterruptedException {
         jdbcTemplate.update(
-                "INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', '2099-12-01', 1, 1)");
+                "INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 1, 1)",
+                member.getId());
         Long futureReservationId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
 
         int threadCount = 2;
@@ -96,7 +105,7 @@ class ReservationConcurrencyTest {
             executorService.submit(() -> {
                 try {
                     startLatch.await();
-                    reservationService.deleteReservation(futureReservationId);
+                    reservationService.deleteReservation(futureReservationId, member);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     caughtExceptions.add(e);
@@ -125,10 +134,16 @@ class ReservationConcurrencyTest {
     @DisplayName("대기자가 있는 예약을 동시에 2개의 스레드가 삭제할 때 대기자는 정확히 1번만 승격된다")
     void 대기자_있는_예약_동시_삭제_시_대기자는_1번만_승격된다() throws InterruptedException {
         jdbcTemplate.update(
-                "INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', '2099-12-01', 1, 1)");
+                "INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 1, 1)",
+                member.getId());
         Long reservationId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
+
         jdbcTemplate.update(
-                "INSERT INTO reservation_waiting (name, date, time_id, theme_id) VALUES ('user2', '2099-12-01', 1, 1)");
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user2', '무빙', 'password', 'USER')");
+        Long waitingMemberId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO reservation_waiting (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 1, 1)",
+                waitingMemberId);
 
         int threadCount = 2;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
@@ -141,7 +156,7 @@ class ReservationConcurrencyTest {
             executorService.submit(() -> {
                 try {
                     startLatch.await();
-                    reservationService.deleteReservation(reservationId);
+                    reservationService.deleteReservation(reservationId, member);
                 } catch (Exception e) {
                     caughtExceptions.add(e);
                 } finally {
@@ -160,7 +175,7 @@ class ReservationConcurrencyTest {
 
         Integer reservationCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM reservation", Integer.class);
         assertThat(reservationCount).isEqualTo(1);
-        
+
         Integer waitingCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM reservation_waiting", Integer.class);
         assertThat(waitingCount).isEqualTo(0);
     }

@@ -32,8 +32,10 @@ class ReservationTimeRepositoryTest {
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('14:00', '15:00')");
         jdbcTemplate.update("INSERT INTO reservation_time (start_at, finish_at) VALUES ('18:00', '19:00')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마A', '설명A', 'https://a.com')");
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', ?, 1, 1)",
-                LocalDate.now().minusDays(1));
+        jdbcTemplate.update("INSERT INTO member (login_id, name, password, role) VALUES ('user1', '현미밥', 'password', 'USER')");
+        Long memberId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)",
+                memberId, LocalDate.now().minusDays(1));
     }
 
     @Test

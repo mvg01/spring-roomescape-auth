@@ -1,7 +1,11 @@
 package roomescape.reservation.controller;
 
+import static org.hamcrest.Matchers.equalTo;
+
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import java.time.LocalDate;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,11 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
-
-import java.time.LocalDate;
-import java.util.Map;
-
-import static org.hamcrest.Matchers.equalTo;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(scripts = {"/truncate.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -29,6 +28,7 @@ class ReservationControllerTest {
     private Long pastReservationId;
     private Long futureReservationId1;
     private Long futureReservationId2;
+    private Map<String, String> user1Cookies;
 
     @BeforeEach
     void setUp() {
@@ -41,23 +41,46 @@ class ReservationControllerTest {
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마C', '설명C', 'https://c.com')");
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마D', '설명D', 'https://d.com')");
 
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', ?, 1, 1)",
-                LocalDate.now().minusDays(1));
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user1', '현미밥', 'password', 'USER')");
+        Long user1Id = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user2', '무빙', 'password', 'USER')");
+        Long user2Id = jdbcTemplate.queryForObject("SELECT MAX(id) FROM member", Long.class);
+
+        jdbcTemplate.update("INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, ?, 1, 1)",
+                user1Id, LocalDate.now().minusDays(1));
         pastReservationId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
 
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user1', '2099-12-01', 1, 1)");
+        jdbcTemplate.update(
+                "INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 1, 1)",
+                user1Id);
         futureReservationId1 = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
 
-        jdbcTemplate.update("INSERT INTO reservation (name, date, time_id, theme_id) VALUES ('user2', '2099-12-01', 2, 1)");
+        jdbcTemplate.update(
+                "INSERT INTO reservation (member_id, date, time_id, theme_id) VALUES (?, '2099-12-01', 2, 1)",
+                user2Id);
         futureReservationId2 = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
+
+        user1Cookies = login("user1", "password");
+    }
+
+    private Map<String, String> login(String loginId, String password) {
+        String sessionId = RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("loginId", loginId, "password", password))
+                .when().post("/login")
+                .then().extract().cookie("JSESSIONID");
+        return Map.of("JSESSIONID", sessionId);
     }
 
     @Test
     @DisplayName("예약 생성 성공")
     void 예약_생성_성공() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
-                .body(Map.of("name", "현미밥", "date", "2099-08-05", "timeId", 1, "themeId", 1))
+                .body(Map.of("date", "2099-08-05", "timeId", 1, "themeId", 1))
                 .when().post("/reservations")
                 .then().log().all()
                 .statusCode(201)
@@ -70,8 +93,9 @@ class ReservationControllerTest {
     @DisplayName("과거 날짜로 예약 생성 시 400")
     void 과거_날짜_예약_생성_실패() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
-                .body(Map.of("name", "현미밥", "date", "2020-01-01", "timeId", 1, "themeId", 1))
+                .body(Map.of("date", "2020-01-01", "timeId", 1, "themeId", 1))
                 .when().post("/reservations")
                 .then().log().all()
                 .statusCode(400)
@@ -82,8 +106,9 @@ class ReservationControllerTest {
     @DisplayName("중복 예약 생성 시 409")
     void 중복_예약_생성_실패() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
-                .body(Map.of("name", "현미밥", "date", "2099-12-01", "timeId", 1, "themeId", 1))
+                .body(Map.of("date", "2099-12-01", "timeId", 1, "themeId", 1))
                 .when().post("/reservations")
                 .then().log().all()
                 .statusCode(409)
@@ -94,8 +119,9 @@ class ReservationControllerTest {
     @DisplayName("존재하지 않는 timeId로 예약 생성 시 404")
     void 존재하지_않는_timeId_예약_생성_실패() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
-                .body(Map.of("name", "현미밥", "date", "2099-08-05", "timeId", 999, "themeId", 1))
+                .body(Map.of("date", "2099-08-05", "timeId", 999, "themeId", 1))
                 .when().post("/reservations")
                 .then().log().all()
                 .statusCode(404)
@@ -106,8 +132,9 @@ class ReservationControllerTest {
     @DisplayName("존재하지 않는 themeId로 예약 생성 시 404")
     void 존재하지_않는_themeId_예약_생성_실패() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
-                .body(Map.of("name", "현미밥", "date", "2099-08-05", "timeId", 1, "themeId", 999))
+                .body(Map.of("date", "2099-08-05", "timeId", 1, "themeId", 999))
                 .when().post("/reservations")
                 .then().log().all()
                 .statusCode(404)
@@ -118,6 +145,7 @@ class ReservationControllerTest {
     @DisplayName("예약 수정 성공")
     void 예약_수정_성공() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
                 .body(Map.of("date", "2099-12-02", "timeId", 2))
                 .when().patch("/reservations/" + futureReservationId1)
@@ -131,6 +159,7 @@ class ReservationControllerTest {
     @DisplayName("이미 지난 예약 수정 시 400")
     void 과거_예약_수정_실패() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .contentType(ContentType.JSON)
                 .body(Map.of("date", "2099-12-02", "timeId", 2))
                 .when().patch("/reservations/" + pastReservationId)
@@ -143,6 +172,7 @@ class ReservationControllerTest {
     @DisplayName("예약 삭제 성공")
     void 예약_삭제_성공() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .when().delete("/reservations/" + futureReservationId1)
                 .then().log().all()
                 .statusCode(204);
@@ -152,6 +182,7 @@ class ReservationControllerTest {
     @DisplayName("이미 지난 예약 삭제 시 400")
     void 과거_예약_삭제_실패() {
         RestAssured.given().log().all()
+                .cookies(user1Cookies)
                 .when().delete("/reservations/" + pastReservationId)
                 .then().log().all()
                 .statusCode(400)

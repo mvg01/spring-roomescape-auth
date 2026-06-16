@@ -19,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import roomescape.common.domain.ReservationSlot;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
+import roomescape.member.domain.Role;
 import roomescape.reservation.domain.Reservation;
 import roomescape.reservation.repository.ReservationRepository;
 import roomescape.reservationtime.domain.ReservationTime;
@@ -50,13 +52,17 @@ class ReservationWaitingServiceTest {
 
     private ReservationTime time;
     private Theme theme;
+    private Member owner;
+    private Member member;
     private Reservation futureReservation;
 
     @BeforeEach
     void setUp() {
         time = ReservationTime.restore(1L, LocalTime.of(10, 0), LocalTime.of(11, 0));
         theme = Theme.restore(1L, "테마A", "설명", "https://a.com");
-        futureReservation = Reservation.restore(1L, "user1",
+        owner = Member.restore(1L, "owner1", "예약자", "password", Role.USER);
+        member = Member.restore(2L, "user2", "현미밥", "password", Role.USER);
+        futureReservation = Reservation.restore(1L, owner,
                 new ReservationSlot(LocalDate.of(2099, 12, 1), time, theme));
     }
 
@@ -64,9 +70,9 @@ class ReservationWaitingServiceTest {
     @DisplayName("같은 사용자가 같은 슬롯에 중복 대기할 수 없다.")
     void 예약_대기_생성_실패() {
         when(reservationRepository.findById(1L)).thenReturn(Optional.of(futureReservation));
-        when(reservationWaitingRepository.isWaitingBy(futureReservation.getSlot(), "현미밥")).thenReturn(true);
+        when(reservationWaitingRepository.isWaitingBy(futureReservation.getSlot(), member.getId())).thenReturn(true);
 
-        assertThatThrownBy(() -> reservationWaitingService.createWaiting(new ReservationWaitingRequest("현미밥", 1L)))
+        assertThatThrownBy(() -> reservationWaitingService.createWaiting(new ReservationWaitingRequest(1L), member))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(
                         e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_WAITING))
@@ -76,12 +82,12 @@ class ReservationWaitingServiceTest {
     @Test
     @DisplayName("지난 예약 대기는 삭제할 수 없다.")
     void 예약_대기_삭제_실패() {
-        ReservationWaiting waiting = ReservationWaiting.restore(1L, "현미밥", LocalDate.now().minusDays(1), time, theme);
+        ReservationWaiting waiting = ReservationWaiting.restore(1L, member, LocalDate.now().minusDays(1), time, theme);
         when(reservationWaitingRepository.findById(1L)).thenReturn(Optional.of(waiting));
         when(clock.instant()).thenReturn(fixedClock.instant());
         when(clock.getZone()).thenReturn(fixedClock.getZone());
 
-        assertThatThrownBy(() -> reservationWaitingService.deleteWaiting(1L))
+        assertThatThrownBy(() -> reservationWaitingService.deleteWaiting(1L, member))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo(
                         ErrorCode.PAST_WAITING_CANCEL))
@@ -93,7 +99,7 @@ class ReservationWaitingServiceTest {
     void 없는_대기_삭제_실패() {
         when(reservationWaitingRepository.findById(Long.MAX_VALUE)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reservationWaitingService.deleteWaiting(Long.MAX_VALUE))
+        assertThatThrownBy(() -> reservationWaitingService.deleteWaiting(Long.MAX_VALUE, member))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(
                         e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.WAITING_NOT_FOUND))
