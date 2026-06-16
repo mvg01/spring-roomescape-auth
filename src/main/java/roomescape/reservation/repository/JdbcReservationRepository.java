@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.stereotype.Repository;
 import roomescape.common.domain.ReservationSlot;
+import roomescape.member.domain.Member;
+import roomescape.member.domain.Role;
 import roomescape.reservation.domain.Reservation;
 import roomescape.reservation.dto.ReservationIdResponse;
 import roomescape.reservationtime.domain.ReservationTime;
@@ -18,12 +20,30 @@ import roomescape.theme.domain.Theme;
 @Repository
 public class JdbcReservationRepository implements ReservationRepository {
 
+    private static final String BASE_QUERY = """
+            SELECT r.id as reservation_id, r.date,
+                   m.id as member_id, m.login_id as member_login_id, m.name as member_name,
+                   m.password as member_password, m.role as member_role,
+                   rt.id as time_id, rt.start_at as time_start_at, rt.finish_at as time_finish_at,
+                   t.id as theme_id, t.name as theme_name, t.description as theme_description, t.image_url as theme_image_url
+            FROM reservation r
+            JOIN member m ON r.member_id = m.id
+            JOIN reservation_time rt ON r.time_id = rt.id
+            JOIN theme t ON r.theme_id = t.id
+            """;
+
     private final JdbcTemplate jdbcTemplate;
     private final SimpleJdbcInsert simpleJdbcInsert;
 
     private final RowMapper<Reservation> rowMapper = (resultSet, rowNum) -> Reservation.restore(
             resultSet.getLong("reservation_id"),
-            resultSet.getString("name"),
+            Member.restore(
+                    resultSet.getLong("member_id"),
+                    resultSet.getString("member_login_id"),
+                    resultSet.getString("member_name"),
+                    resultSet.getString("member_password"),
+                    Role.valueOf(resultSet.getString("member_role"))
+            ),
             new ReservationSlot(
                     resultSet.getDate("date").toLocalDate(),
                     ReservationTime.restore(
@@ -54,57 +74,33 @@ public class JdbcReservationRepository implements ReservationRepository {
     @Override
     public Reservation save(Reservation reservation) {
         SqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("name", reservation.getName())
+                .addValue("member_id", reservation.getMember().getId())
                 .addValue("date", reservation.getDate())
                 .addValue("time_id", reservation.getTime().getId())
                 .addValue("theme_id", reservation.getTheme().getId());
         Long id = simpleJdbcInsert.executeAndReturnKey(parameters).longValue();
-        return Reservation.restore(id, reservation.getName(),
+        return Reservation.restore(id, reservation.getMember(),
                 new ReservationSlot(reservation.getDate(), reservation.getTime(),
                         reservation.getTheme()));
     }
 
     @Override
     public Optional<Reservation> findById(Long id) {
-        String query = """
-                SELECT r.id as reservation_id, r.name, r.date,
-                       rt.id as time_id, rt.start_at as time_start_at, rt.finish_at as time_finish_at,
-                       t.id as theme_id, t.name as theme_name, t.description as theme_description, t.image_url as theme_image_url
-                FROM reservation r
-                JOIN reservation_time rt ON r.time_id = rt.id
-                JOIN theme t ON r.theme_id = t.id
-                WHERE r.id = ?
-                """;
+        String query = "SELECT * FROM (" + BASE_QUERY + ") sub WHERE sub.reservation_id = ?";
         return jdbcTemplate.query(query, rowMapper, id).stream().findFirst();
     }
 
     @Override
     public List<Reservation> findAll() {
-        String query = """
-                SELECT r.id as reservation_id, r.name, r.date,
-                       rt.id as time_id, rt.start_at as time_start_at, rt.finish_at as time_finish_at,
-                       t.id as theme_id, t.name as theme_name, t.description as theme_description, t.image_url as theme_image_url
-                FROM reservation r
-                JOIN reservation_time rt ON r.time_id = rt.id
-                JOIN theme t ON r.theme_id = t.id
-                ORDER BY r.date DESC, rt.start_at DESC
-                """;
+        String query = "SELECT * FROM (" + BASE_QUERY + ") sub ORDER BY sub.date DESC, sub.time_start_at DESC";
         return jdbcTemplate.query(query, rowMapper);
     }
 
     @Override
-    public List<Reservation> findByName(String name) {
-        String query = """
-                SELECT r.id as reservation_id, r.name, r.date,
-                       rt.id as time_id, rt.start_at as time_start_at, rt.finish_at as time_finish_at,
-                       t.id as theme_id, t.name as theme_name, t.description as theme_description, t.image_url as theme_image_url
-                FROM reservation r
-                JOIN reservation_time rt ON r.time_id = rt.id
-                JOIN theme t ON r.theme_id = t.id
-                WHERE r.name = ?
-                ORDER BY r.date DESC, rt.start_at DESC
-                """;
-        return jdbcTemplate.query(query, rowMapper, name);
+    public List<Reservation> findByMemberId(Long memberId) {
+        String query = "SELECT * FROM (" + BASE_QUERY
+                + ") sub WHERE sub.member_id = ? ORDER BY sub.date DESC, sub.time_start_at DESC";
+        return jdbcTemplate.query(query, rowMapper, memberId);
     }
 
     @Override
@@ -122,9 +118,9 @@ public class JdbcReservationRepository implements ReservationRepository {
     }
 
     @Override
-    public boolean isReservedBy(ReservationSlot slot, String name) {
-        String query = "select count(*) from reservation where name = ? and date = ? and time_id = ? and theme_id = ?";
-        Integer count = jdbcTemplate.queryForObject(query, Integer.class, name, slot.date(), slot.time().getId(),
+    public boolean isReservedBy(ReservationSlot slot, Long memberId) {
+        String query = "select count(*) from reservation where member_id = ? and date = ? and time_id = ? and theme_id = ?";
+        Integer count = jdbcTemplate.queryForObject(query, Integer.class, memberId, slot.date(), slot.time().getId(),
                 slot.theme().getId());
         return count != null && count > 0;
     }

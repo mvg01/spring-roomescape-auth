@@ -6,27 +6,28 @@ import java.time.LocalDateTime;
 import roomescape.common.domain.ReservationSlot;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservation.domain.Reservation;
 import roomescape.reservationtime.domain.ReservationTime;
 import roomescape.theme.domain.Theme;
 
 public class ReservationWaiting {
     private final Long id;
-    private final String name;
+    private final Member member;
     private final ReservationSlot slot;
 
-    private ReservationWaiting(Long id, String name, ReservationSlot slot) {
+    private ReservationWaiting(Long id, Member member, ReservationSlot slot) {
         this.id = id;
-        this.name = name;
+        this.member = member;
         this.slot = slot;
     }
 
-    public static ReservationWaiting restore(Long id, String name, LocalDate date, ReservationTime time, Theme theme) {
-        return new ReservationWaiting(id, name, new ReservationSlot(date, time, theme));
+    public static ReservationWaiting restore(Long id, Member member, LocalDate date, ReservationTime time, Theme theme) {
+        return new ReservationWaiting(id, member, new ReservationSlot(date, time, theme));
     }
 
     public Reservation toReservation() {
-        return Reservation.restore(null, name, slot);
+        return Reservation.restore(null, member, slot);
     }
 
     public void validateCancelable(Clock clock, ErrorCode code) {
@@ -39,8 +40,8 @@ public class ReservationWaiting {
         return id;
     }
 
-    public String getName() {
-        return name;
+    public Member getMember() {
+        return member;
     }
 
     public LocalDate getDate() {

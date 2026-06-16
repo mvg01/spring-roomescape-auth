@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import roomescape.common.domain.ReservationSlot;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservationtime.domain.ReservationTime;
 import roomescape.theme.domain.Theme;
 
@@ -19,14 +20,14 @@ public class ReservationFactory {
         this.clock = clock;
     }
 
-    public Reservation create(String name, ReservationSlot slot) {
-        validate(name, slot.date(), slot.time(), slot.theme());
-        return Reservation.restore(null, name, slot);
+    public Reservation create(Member member, ReservationSlot slot) {
+        validate(member, slot.date(), slot.time(), slot.theme());
+        return Reservation.restore(null, member, slot);
     }
 
-    private void validate(String name, LocalDate date, ReservationTime time, Theme theme) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("예약자 이름은 필수입니다.");
+    private void validate(Member member, LocalDate date, ReservationTime time, Theme theme) {
+        if (member == null) {
+            throw new IllegalArgumentException("예약자는 필수입니다.");
         }
         if (date == null) {
             throw new IllegalArgumentException("날짜는 필수입니다.");

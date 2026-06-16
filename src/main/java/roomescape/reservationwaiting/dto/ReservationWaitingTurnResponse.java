@@ -10,7 +10,7 @@ public record ReservationWaitingTurnResponse(Long id, String name, Long turn,
     public static ReservationWaitingTurnResponse from(ReservationWaiting reservationWaiting, Long turn) {
         return new ReservationWaitingTurnResponse(
                 reservationWaiting.getId(),
-                reservationWaiting.getName(),
+                reservationWaiting.getMember().getName(),
                 turn,
                 reservationWaiting.getDate(),
                 reservationWaiting.getTime().getStartAt(),

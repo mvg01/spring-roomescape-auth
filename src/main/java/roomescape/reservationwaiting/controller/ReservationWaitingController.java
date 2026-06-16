@@ -1,5 +1,6 @@
 package roomescape.reservationwaiting.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -10,8 +11,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import roomescape.common.exception.BusinessException;
+import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservationwaiting.dto.ReservationWaitingRequest;
 import roomescape.reservationwaiting.dto.ReservationWaitingResponse;
 import roomescape.reservationwaiting.dto.ReservationWaitingTurnResponse;
@@ -28,14 +31,22 @@ public class ReservationWaitingController {
 
     @PostMapping
     public ResponseEntity<ReservationWaitingResponse> createWaiting(
-            @Valid @RequestBody ReservationWaitingRequest request) {
-        ReservationWaitingResponse response = reservationWaitingService.createWaiting(request);
+            @Valid @RequestBody ReservationWaitingRequest request, HttpServletRequest httpRequest) {
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        ReservationWaitingResponse response = reservationWaitingService.createWaiting(request, member);
         return ResponseEntity.created(URI.create("/waitings/" + response.id())).body(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<ReservationWaitingTurnResponse>> getWaitingByName(@RequestParam String name) {
-        return ResponseEntity.ok(reservationWaitingService.getWaitingByName(name));
+    public ResponseEntity<List<ReservationWaitingTurnResponse>> getWaitings(HttpServletRequest httpRequest) {
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        return ResponseEntity.ok(reservationWaitingService.getWaitings(member));
     }
 
     @DeleteMapping("/{id}")

@@ -13,6 +13,7 @@ import roomescape.common.domain.ReservationSlot;
 import roomescape.common.event.ReservationEvent;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservation.domain.Reservation;
 import roomescape.reservation.domain.ReservationFactory;
 import roomescape.reservation.dto.ReservationIdResponse;
@@ -50,7 +51,7 @@ public class ReservationService {
     }
 
     @Transactional
-    public ReservationResponse createReservation(ReservationRequest request) {
+    public ReservationResponse createReservation(ReservationRequest request, Member member) {
         ReservationTime time = reservationTimeService.getById(request.timeId());
         Theme theme = themeService.getById(request.themeId());
         ReservationSlot slot = new ReservationSlot(request.date(), time, theme);
@@ -59,17 +60,15 @@ public class ReservationService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESERVATION);
         }
         try {
-            Reservation saved = reservationRepository.save(reservationFactory.create(request.name(), slot));
+            Reservation saved = reservationRepository.save(reservationFactory.create(member, slot));
             return ReservationResponse.from(saved);
         } catch (DuplicateKeyException e) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESERVATION);
         }
     }
 
-    public List<ReservationResponse> getReservationsByName(String name) {
-        List<Reservation> reservations = (name != null)
-                ? reservationRepository.findByName(name)
-                : reservationRepository.findAll();
+    public List<ReservationResponse> getReservations(Member member) {
+        List<Reservation> reservations = reservationRepository.findByMemberId(member.getId());
         return reservations.stream()
                 .map(ReservationResponse::from)
                 .collect(Collectors.toList());

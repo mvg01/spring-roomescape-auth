@@ -14,13 +14,13 @@ public interface ReservationRepository {
 
     List<Reservation> findAll();
 
-    List<Reservation> findByName(String name);
+    List<Reservation> findByMemberId(Long memberId);
 
     void update(Long id, ReservationSlot slot);
 
     boolean isBooked(ReservationSlot slot);
 
-    boolean isReservedBy(ReservationSlot slot, String name);
+    boolean isReservedBy(ReservationSlot slot, Long memberId);
 
     boolean isBookedByOther(ReservationSlot slot, Long id);
 

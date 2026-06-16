@@ -12,6 +12,7 @@ import roomescape.common.domain.ReservationSlot;
 import roomescape.common.event.ReservationEvent;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservation.domain.Reservation;
 import roomescape.reservation.dto.ReservationResponse;
 import roomescape.reservation.repository.ReservationRepository;
@@ -41,19 +42,19 @@ public class ReservationWaitingService {
     }
 
     @Transactional
-    public ReservationWaitingResponse createWaiting(ReservationWaitingRequest request) {
+    public ReservationWaitingResponse createWaiting(ReservationWaitingRequest request, Member member) {
         Reservation reservation = reservationRepository.findById(request.reservationId())
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESERVATION_NOT_FOUND));
-        if (reservationWaitingRepository.isWaitingBy(reservation.getSlot(), request.name())) {
+        if (reservationWaitingRepository.isWaitingBy(reservation.getSlot(), member.getId())) {
             throw new BusinessException(ErrorCode.DUPLICATE_WAITING);
         }
-        if (reservationRepository.isReservedBy(reservation.getSlot(), request.name())) {
+        if (reservationRepository.isReservedBy(reservation.getSlot(), member.getId())) {
             throw new BusinessException(ErrorCode.WAITING_ON_OWN_RESERVATION);
         }
         try {
             ReservationWaiting waiting = reservationWaitingRepository.save(
-                    reservationWaitingFactory.create(request.name(), reservation));
+                    reservationWaitingFactory.create(member, reservation));
             return ReservationWaitingResponse.from(waiting);
         } catch (DuplicateKeyException e) {
             throw new BusinessException(ErrorCode.DUPLICATE_WAITING);
@@ -68,9 +69,9 @@ public class ReservationWaitingService {
     }
 
     @Transactional
-    public List<ReservationWaitingTurnResponse> getWaitingByName(String name) {
-        List<ReservationWaiting> reservationWaitings = reservationWaitingRepository.findByName(name);
-        Map<Long, Long> turns = reservationWaitingRepository.calculateTurn(name);
+    public List<ReservationWaitingTurnResponse> getWaitings(Member member) {
+        List<ReservationWaiting> reservationWaitings = reservationWaitingRepository.findByMemberId(member.getId());
+        Map<Long, Long> turns = reservationWaitingRepository.calculateTurn(member.getId());
 
         return reservationWaitings.stream()
                 .map(waiting -> ReservationWaitingTurnResponse.from(waiting, turns.get(waiting.getId())))

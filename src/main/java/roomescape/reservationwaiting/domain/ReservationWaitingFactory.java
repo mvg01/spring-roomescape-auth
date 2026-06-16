@@ -4,6 +4,7 @@ import java.time.Clock;
 import org.springframework.stereotype.Component;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservation.domain.Reservation;
 
 @Component
@@ -15,14 +16,14 @@ public class ReservationWaitingFactory {
         this.clock = clock;
     }
 
-    public ReservationWaiting create(String name, Reservation reservation) {
-        validate(name, reservation);
-        return ReservationWaiting.restore(null, name, reservation.getDate(), reservation.getTime(), reservation.getTheme());
+    public ReservationWaiting create(Member member, Reservation reservation) {
+        validate(member, reservation);
+        return ReservationWaiting.restore(null, member, reservation.getDate(), reservation.getTime(), reservation.getTheme());
     }
 
-    private void validate(String name, Reservation reservation) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("예약자 이름은 필수입니다.");
+    private void validate(Member member, Reservation reservation) {
+        if (member == null) {
+            throw new IllegalArgumentException("대기자는 필수입니다.");
         }
         if (reservation.isPast(clock)) {
             throw new BusinessException(ErrorCode.PAST_TIME_WAITING);

@@ -7,26 +7,27 @@ import lombok.Builder;
 import roomescape.common.domain.ReservationSlot;
 import roomescape.common.exception.BusinessException;
 import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservationtime.domain.ReservationTime;
 import roomescape.theme.domain.Theme;
 
 public class Reservation {
 
     private final Long id;
-    private final String name;
+    private final Member member;
     private final ReservationSlot slot;
 
     @Builder(access = lombok.AccessLevel.PRIVATE)
-    private Reservation(Long id, String name, ReservationSlot slot) {
+    private Reservation(Long id, Member member, ReservationSlot slot) {
         this.id = id;
-        this.name = name;
+        this.member = member;
         this.slot = slot;
     }
 
-    public static Reservation restore(Long id, String name, ReservationSlot slot) {
+    public static Reservation restore(Long id, Member member, ReservationSlot slot) {
         return Reservation.builder()
                 .id(id)
-                .name(name)
+                .member(member)
                 .slot(slot)
                 .build();
     }
@@ -34,7 +35,7 @@ public class Reservation {
     public Reservation reschedule(LocalDate date, ReservationTime time, Clock clock) {
         Reservation changed = Reservation.builder()
                 .id(this.id)
-                .name(this.name)
+                .member(this.member)
                 .slot(new ReservationSlot(date, time, getTheme()))
                 .build();
         if (changed.isPast(clock)) {
@@ -57,8 +58,8 @@ public class Reservation {
         return id;
     }
 
-    public String getName() {
-        return name;
+    public Member getMember() {
+        return member;
     }
 
     public LocalDate getDate() {

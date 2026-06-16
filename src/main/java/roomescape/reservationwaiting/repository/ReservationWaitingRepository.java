@@ -11,13 +11,13 @@ public interface ReservationWaitingRepository {
 
     void deleteById(Long id);
 
-    Map<Long, Long> calculateTurn(String name);
+    Map<Long, Long> calculateTurn(Long memberId);
 
-    List<ReservationWaiting> findByName(String name);
+    List<ReservationWaiting> findByMemberId(Long memberId);
 
     Optional<ReservationWaiting> findOldestBySlot(ReservationSlot slot);
 
-    boolean isWaitingBy(ReservationSlot slot, String name);
+    boolean isWaitingBy(ReservationSlot slot, Long memberId);
 
     Optional<ReservationWaiting> findById(Long id);
 }

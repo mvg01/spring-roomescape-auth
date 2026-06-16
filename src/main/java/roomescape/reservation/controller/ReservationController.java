@@ -1,6 +1,7 @@
 package roomescape.reservation.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.time.LocalDate;
@@ -15,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import roomescape.common.exception.BusinessException;
+import roomescape.common.exception.ErrorCode;
+import roomescape.member.domain.Member;
 import roomescape.reservation.dto.ReservationIdResponse;
 import roomescape.reservation.dto.ReservationRequest;
 import roomescape.reservation.dto.ReservationResponse;
@@ -33,9 +37,12 @@ public class ReservationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ReservationResponse>> getReservationsByName(
-            @RequestParam(required = false) String name) {
-        return ResponseEntity.ok(reservationService.getReservationsByName(name));
+    public ResponseEntity<List<ReservationResponse>> getReservations(HttpServletRequest request) {
+        Member member = (Member) request.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        return ResponseEntity.ok(reservationService.getReservations(member));
     }
 
     @GetMapping("/id")
@@ -46,8 +53,13 @@ public class ReservationController {
     }
 
     @PostMapping
-    public ResponseEntity<ReservationResponse> createReservation(@Valid @RequestBody ReservationRequest request) {
-        ReservationResponse response = reservationService.createReservation(request);
+    public ResponseEntity<ReservationResponse> createReservation(@Valid @RequestBody ReservationRequest request,
+                                                                 HttpServletRequest httpRequest) {
+        Member member = (Member) httpRequest.getSession().getAttribute("member");
+        if (member == null) {
+            throw new BusinessException(ErrorCode.LOGIN_REQUIRED);
+        }
+        ReservationResponse response = reservationService.createReservation(request, member);
         return ResponseEntity.created(URI.create("/reservations/" + response.id())).body(response);
     }
 
