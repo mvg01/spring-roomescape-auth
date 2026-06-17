@@ -27,6 +27,7 @@ class AdminThemeControllerTest {
     private JdbcTemplate jdbcTemplate;
 
     private Map<String, String> adminCookies;
+    private Map<String, String> userCookies;
 
     @BeforeEach
     void setUp() {
@@ -37,7 +38,10 @@ class AdminThemeControllerTest {
         jdbcTemplate.update("INSERT INTO theme (name, description, image_url) VALUES ('테마D', '설명D', 'https://d.com')");
         jdbcTemplate.update(
                 "INSERT INTO member (login_id, name, password, role) VALUES ('admin', '관리자', 'password', 'ADMIN')");
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role) VALUES ('user1', '현미밥', 'password', 'USER')");
         adminCookies = login("admin", "password");
+        userCookies = login("user1", "password");
     }
 
     private Map<String, String> login(String loginId, String password) {
@@ -92,5 +96,29 @@ class AdminThemeControllerTest {
                 .when().delete("/admin/themes/" + id)
                 .then().log().all()
                 .statusCode(204);
+    }
+
+    @Test
+    @DisplayName("일반 사용자가 테마 생성 시 403")
+    void 일반_사용자_테마_생성_실패() {
+        RestAssured.given().log().all()
+                .cookies(userCookies)
+                .contentType(ContentType.JSON)
+                .body(themeBody())
+                .when().post("/admin/themes")
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("ADMIN_ACCESS_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("일반 사용자가 테마 삭제 시 403")
+    void 일반_사용자_테마_삭제_실패() {
+        RestAssured.given().log().all()
+                .cookies(userCookies)
+                .when().delete("/admin/themes/1")
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("ADMIN_ACCESS_REQUIRED"));
     }
 }

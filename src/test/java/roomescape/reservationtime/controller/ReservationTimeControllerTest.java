@@ -27,6 +27,7 @@ class ReservationTimeControllerTest {
     private JdbcTemplate jdbcTemplate;
 
     private Map<String, String> adminCookies;
+    private Map<String, String> userCookies;
 
     @BeforeEach
     void setUp() {
@@ -42,6 +43,7 @@ class ReservationTimeControllerTest {
         jdbcTemplate.update(
                 "INSERT INTO member (login_id, name, password, role) VALUES ('admin', '관리자', 'password', 'ADMIN')");
         adminCookies = login("admin", "password");
+        userCookies = login("user1", "password");
     }
 
     private Map<String, String> login(String loginId, String password) {
@@ -102,5 +104,29 @@ class ReservationTimeControllerTest {
                 .then().log().all()
                 .statusCode(200)
                 .body("size()", is(2));
+    }
+
+    @Test
+    @DisplayName("일반 사용자가 시간 생성 시 403")
+    void 일반_사용자_시간_생성_실패() {
+        RestAssured.given().log().all()
+                .cookies(userCookies)
+                .contentType(ContentType.JSON)
+                .body(Map.of("startAt", "20:00", "finishAt", "21:00"))
+                .when().post("/times")
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("ADMIN_ACCESS_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("일반 사용자가 시간 삭제 시 403")
+    void 일반_사용자_시간_삭제_실패() {
+        RestAssured.given().log().all()
+                .cookies(userCookies)
+                .when().delete("/times/2")
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("ADMIN_ACCESS_REQUIRED"));
     }
 }

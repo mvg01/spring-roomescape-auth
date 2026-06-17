@@ -29,6 +29,7 @@ class ReservationControllerTest {
     private Long futureReservationId1;
     private Long futureReservationId2;
     private Map<String, String> user1Cookies;
+    private Map<String, String> user2Cookies;
 
     @BeforeEach
     void setUp() {
@@ -63,6 +64,7 @@ class ReservationControllerTest {
         futureReservationId2 = jdbcTemplate.queryForObject("SELECT MAX(id) FROM reservation", Long.class);
 
         user1Cookies = login("user1", "password");
+        user2Cookies = login("user2", "password");
     }
 
     private Map<String, String> login(String loginId, String password) {
@@ -187,6 +189,42 @@ class ReservationControllerTest {
                 .then().log().all()
                 .statusCode(400)
                 .body("errorCode", equalTo("PAST_RESERVATION_CANCEL"));
+    }
+
+    @Test
+    @DisplayName("로그인하지 않고 예약 생성 시 401")
+    void 비로그인_예약_생성_실패() {
+        RestAssured.given().log().all()
+                .contentType(ContentType.JSON)
+                .body(Map.of("date", "2099-08-05", "timeId", 1, "themeId", 1))
+                .when().post("/reservations")
+                .then().log().all()
+                .statusCode(401)
+                .body("errorCode", equalTo("LOGIN_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 예약 수정 시 403")
+    void 타인_예약_수정_실패() {
+        RestAssured.given().log().all()
+                .cookies(user2Cookies)
+                .contentType(ContentType.JSON)
+                .body(Map.of("date", "2099-12-02", "timeId", 2))
+                .when().patch("/reservations/" + futureReservationId1)
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("RESERVATION_ACCESS_DENIED"));
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 예약 삭제 시 403")
+    void 타인_예약_삭제_실패() {
+        RestAssured.given().log().all()
+                .cookies(user2Cookies)
+                .when().delete("/reservations/" + futureReservationId1)
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("RESERVATION_ACCESS_DENIED"));
     }
 
     @Test
