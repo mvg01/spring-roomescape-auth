@@ -25,7 +25,8 @@ public class JdbcReservationRepository implements ReservationRepository {
                    m.id as member_id, m.login_id as member_login_id, m.name as member_name,
                    m.password as member_password, m.role as member_role,
                    rt.id as time_id, rt.start_at as time_start_at, rt.finish_at as time_finish_at,
-                   t.id as theme_id, t.name as theme_name, t.description as theme_description, t.image_url as theme_image_url
+                   t.id as theme_id, t.name as theme_name, t.description as theme_description, t.image_url as theme_image_url,
+                   t.store_id as theme_store_id
             FROM reservation r
             JOIN member m ON r.member_id = m.id
             JOIN reservation_time rt ON r.time_id = rt.id
@@ -55,7 +56,8 @@ public class JdbcReservationRepository implements ReservationRepository {
                             resultSet.getLong("theme_id"),
                             resultSet.getString("theme_name"),
                             resultSet.getString("theme_description"),
-                            resultSet.getString("theme_image_url")
+                            resultSet.getString("theme_image_url"),
+                            resultSet.getObject("theme_store_id", Long.class)
                     )
             )
     );

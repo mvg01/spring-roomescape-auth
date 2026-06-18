@@ -3,6 +3,14 @@ DROP TABLE IF EXISTS reservation;
 DROP TABLE IF EXISTS theme;
 DROP TABLE IF EXISTS reservation_time;
 DROP TABLE IF EXISTS member;
+DROP TABLE IF EXISTS store;
+
+CREATE TABLE store
+(
+    id   BIGINT       NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    PRIMARY KEY (id)
+);
 
 CREATE TABLE member
 (
@@ -11,8 +19,10 @@ CREATE TABLE member
     name     VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     role     VARCHAR(20)  NOT NULL,
+    store_id BIGINT,
     UNIQUE(login_id),
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    FOREIGN KEY (store_id) REFERENCES store (id)
 );
 
 CREATE TABLE reservation_time
@@ -30,8 +40,10 @@ CREATE TABLE theme
     name        VARCHAR(255) NOT NULL,
     description VARCHAR(500) NOT NULL,
     image_url   VARCHAR(255) NOT NULL,
+    store_id    BIGINT,
     UNIQUE(name),
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    FOREIGN KEY (store_id) REFERENCES store (id)
 );
 
 CREATE TABLE reservation

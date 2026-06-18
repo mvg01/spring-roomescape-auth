@@ -54,6 +54,12 @@ public class Reservation {
         }
     }
 
+    public boolean isManagedBy(Member member) {
+        boolean isOwner = this.member.getId().equals(member.getId());
+        boolean manageStore = member.isManager() && member.getStoreId().equals(getTheme().getStoreId());
+        return isOwner || manageStore;
+    }
+
     public Long getId() {
         return id;
     }

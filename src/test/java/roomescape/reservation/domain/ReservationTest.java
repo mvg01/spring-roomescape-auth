@@ -100,4 +100,42 @@ class ReservationTest {
         Reservation validReservation = reservation.reschedule(LocalDate.now().plusDays(5), time, clock);
         assertThat(validReservation.getDate()).isEqualTo(LocalDate.now().plusDays(5));
     }
+
+    @Test
+    @DisplayName("예약 주인이면 관리할 수 있다")
+    void 관리할_수_있는_예약인지_확인() {
+        Reservation reservation = Reservation.restore(1L, member, slot);
+        assertThat(reservation.isManagedBy(member)).isTrue();
+    }
+
+    @Test
+    @DisplayName("매니저는 자기 매장 예약이면 주인이 아니어도 관리할 수 있다")
+    void 매니저_자기매장이면_관리_가능() {
+        Theme storeTheme = Theme.restore(1L, "테마1", "설명", "https://image.com", 1L);
+        Reservation reservation = Reservation.restore(1L, member,
+                new ReservationSlot(futureDate, time, storeTheme));
+        Member manager = Member.restore(2L, "manager", "매니저", "password", Role.USER, 1L);
+
+        assertThat(reservation.isManagedBy(manager)).isTrue();
+    }
+
+    @Test
+    @DisplayName("매니저라도 다른 매장 예약은 관리할 수 없다")
+    void 매니저_다른매장이면_관리_불가() {
+        Theme storeTheme = Theme.restore(1L, "테마1", "설명", "https://image.com", 1L);
+        Reservation reservation = Reservation.restore(1L, member,
+                new ReservationSlot(futureDate, time, storeTheme));
+        Member otherManager = Member.restore(2L, "manager", "매니저", "password", Role.USER, 2L);
+
+        assertThat(reservation.isManagedBy(otherManager)).isFalse();
+    }
+
+    @Test
+    @DisplayName("매니저가 아닌 사용자는 남의 예약을 관리할 수 없다")
+    void 일반사용자_남의예약_관리_불가() {
+        Reservation reservation = Reservation.restore(1L, member, slot);
+        Member other = Member.restore(2L, "other", "타인", "password", Role.USER);
+
+        assertThat(reservation.isManagedBy(other)).isFalse();
+    }
 }

@@ -77,7 +77,7 @@ public class ReservationService {
     @Transactional
     public void deleteReservation(Long id, Member member) {
         Reservation reservation = getById(id);
-        validateOwner(reservation, member);
+        validateAccessible(reservation, member);
         reservation.validateModifiable(clock, ErrorCode.PAST_RESERVATION_CANCEL);
 
         reservationRepository.deleteById(id);
@@ -88,7 +88,7 @@ public class ReservationService {
     @Transactional
     public ReservationResponse updateReservation(Long id, ReservationUpdateRequest request, Member member) {
         Reservation reservation = getById(id);
-        validateOwner(reservation, member);
+        validateAccessible(reservation, member);
         reservation.validateModifiable(clock, ErrorCode.PAST_RESERVATION_UPDATE);
 
         ReservationSlot slot = reservation.getSlot();
@@ -112,9 +112,9 @@ public class ReservationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
     }
 
-    private void validateOwner(Reservation reservation, Member member) {
-        if (!reservation.getMember().getId().equals(member.getId())) {
-            throw new BusinessException(ErrorCode.RESERVATION_ACCESS_DENIED);
+    private void validateAccessible(Reservation reservation, Member member) {
+        if (!reservation.isManagedBy(member)) {
+            throw new BusinessException(ErrorCode.STORE_ACCESS_DENIED);
         }
     }
 

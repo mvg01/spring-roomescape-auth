@@ -21,7 +21,8 @@ public class JdbcMemberRepository implements MemberRepository {
             resultSet.getString("login_id"),
             resultSet.getString("name"),
             resultSet.getString("password"),
-            Role.valueOf(resultSet.getString("role"))
+            Role.valueOf(resultSet.getString("role")),
+            resultSet.getObject("store_id", Long.class)
     );
 
     public JdbcMemberRepository(JdbcTemplate jdbcTemplate) {
@@ -37,9 +38,11 @@ public class JdbcMemberRepository implements MemberRepository {
                 .addValue("login_id", member.getLoginId())
                 .addValue("name", member.getName())
                 .addValue("password", member.getPassword())
-                .addValue("role", member.getRole().name());
+                .addValue("role", member.getRole().name())
+                .addValue("store_id", member.getStoreId());
         Long id = simpleJdbcInsert.executeAndReturnKey(parameters).longValue();
-        return Member.restore(id, member.getLoginId(), member.getName(), member.getPassword(), member.getRole());
+        return Member.restore(id, member.getLoginId(), member.getName(), member.getPassword(), member.getRole(),
+                member.getStoreId());
     }
 
     @Override

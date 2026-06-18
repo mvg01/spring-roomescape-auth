@@ -20,6 +20,7 @@ public enum ErrorCode {
     RESERVATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 예약만 처리할 수 있습니다."),
     WAITING_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 대기만 처리할 수 있습니다."),
     ADMIN_ACCESS_REQUIRED(HttpStatus.FORBIDDEN, "관리자만 접근할 수 있습니다."),
+    STORE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "관리 권한이 없습니다."),
 
     // 404 - NOT_FOUND
     RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 예약입니다."),

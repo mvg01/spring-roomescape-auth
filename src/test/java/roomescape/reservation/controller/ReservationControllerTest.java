@@ -30,6 +30,7 @@ class ReservationControllerTest {
     private Long futureReservationId2;
     private Map<String, String> user1Cookies;
     private Map<String, String> user2Cookies;
+    private Map<String, String> managerCookies;
 
     @BeforeEach
     void setUp() {
@@ -65,6 +66,15 @@ class ReservationControllerTest {
 
         user1Cookies = login("user1", "password");
         user2Cookies = login("user2", "password");
+
+        jdbcTemplate.update("INSERT INTO store (name) VALUES ('매장1')");
+        Long storeId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM store", Long.class);
+        jdbcTemplate.update("UPDATE theme SET store_id = ? WHERE id = 1", storeId);
+
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role, store_id) VALUES ('manager1', '매니저1', 'password', 'USER', ?)",
+                storeId);
+        managerCookies = login("manager1", "password");
     }
 
     private Map<String, String> login(String loginId, String password) {
@@ -213,7 +223,7 @@ class ReservationControllerTest {
                 .when().patch("/reservations/" + futureReservationId1)
                 .then().log().all()
                 .statusCode(403)
-                .body("errorCode", equalTo("RESERVATION_ACCESS_DENIED"));
+                .body("errorCode", equalTo("STORE_ACCESS_DENIED"));
     }
 
     @Test
@@ -224,7 +234,7 @@ class ReservationControllerTest {
                 .when().delete("/reservations/" + futureReservationId1)
                 .then().log().all()
                 .statusCode(403)
-                .body("errorCode", equalTo("RESERVATION_ACCESS_DENIED"));
+                .body("errorCode", equalTo("STORE_ACCESS_DENIED"));
     }
 
     @Test
@@ -238,5 +248,48 @@ class ReservationControllerTest {
                 .then().log().all()
                 .statusCode(200)
                 .body("id", equalTo(futureReservationId1.intValue()));
+    }
+
+    @Test
+    @DisplayName("매니저는 자기 매장의 타인 예약을 수정할 수 있다")
+    void 매니저_자기매장_예약_수정_성공() {
+        RestAssured.given().log().all()
+                .cookies(managerCookies)
+                .contentType(ContentType.JSON)
+                .body(Map.of("date", "2099-12-02", "timeId", 2))
+                .when().patch("/reservations/" + futureReservationId1)
+                .then().log().all()
+                .statusCode(200);
+    }
+
+    @Test
+    @DisplayName("매니저는 자기 매장의 타인 예약을 삭제할 수 있다")
+    void 매니저_자기매장_예약_삭제_성공() {
+        RestAssured.given().log().all()
+                .cookies(managerCookies)
+                .when().delete("/reservations/" + futureReservationId1)
+                .then().log().all()
+                .statusCode(204);
+    }
+
+    @Test
+    @DisplayName("매니저는 다른 매장의 타인 예약을 수정할 수 없다")
+    void 매니저_다른매장_예약_수정_실패() {
+        // 이 테스트에서만 필요한 데이터: 매장2 + 매장2 매니저
+        jdbcTemplate.update("INSERT INTO store (name) VALUES ('매장2')");
+        Long otherStoreId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM store", Long.class);
+        jdbcTemplate.update(
+                "INSERT INTO member (login_id, name, password, role, store_id) VALUES ('manager2', '매니저2', 'password', 'USER', ?)",
+                otherStoreId);
+        Map<String, String> otherManagerCookies = login("manager2", "password");
+
+        RestAssured.given().log().all()
+                .cookies(otherManagerCookies)
+                .contentType(ContentType.JSON)
+                .body(Map.of("date", "2099-12-02", "timeId", 2))
+                .when().patch("/reservations/" + futureReservationId1)
+                .then().log().all()
+                .statusCode(403)
+                .body("errorCode", equalTo("STORE_ACCESS_DENIED"));
     }
 }
