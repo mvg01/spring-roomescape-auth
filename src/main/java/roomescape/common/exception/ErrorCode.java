@@ -17,7 +17,6 @@ public enum ErrorCode {
     LOGIN_REQUIRED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
 
     // 403 - FORBIDDEN
-    RESERVATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 예약만 처리할 수 있습니다."),
     WAITING_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 대기만 처리할 수 있습니다."),
     ADMIN_ACCESS_REQUIRED(HttpStatus.FORBIDDEN, "관리자만 접근할 수 있습니다."),
     STORE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "관리 권한이 없습니다."),
@@ -27,7 +26,6 @@ public enum ErrorCode {
     WAITING_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 대기입니다."),
     TIME_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 시간대입니다."),
     THEME_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 테마입니다."),
-    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "잘못된 로그인 정보입니다."),
 
     // 409 - CONFLICT
     DUPLICATE_RESERVATION(HttpStatus.CONFLICT, "이미 예약된 시간입니다."),

@@ -46,12 +46,6 @@ public class JdbcMemberRepository implements MemberRepository {
     }
 
     @Override
-    public Optional<Member> findById(Long id) {
-        String query = "select * from member where id = ?";
-        return jdbcTemplate.query(query, rowMapper, id).stream().findFirst();
-    }
-
-    @Override
     public Optional<Member> findByLoginId(String loginId) {
         String query = "select * from member where login_id = ?";
         return jdbcTemplate.query(query, rowMapper, loginId).stream().findFirst();
